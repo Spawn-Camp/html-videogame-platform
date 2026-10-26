@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hitmarker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#0b0f1a; --bg2:#131a2b; --accent:#7c5cff; --accent2:#22d3ee;
+    --danger:#ff5c7c; --text:#e8ecf7; --muted:#9aa3c4; --card:#161d30;
+    --ink:#05070d;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; image-rendering:pixelated;}
+  html,body{height:100%; margin:0;}
+  body{
+    font-family:'VT323', monospace;
+    font-size:20px;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 2px, transparent 2px 4px),
+      radial-gradient(circle at 30% 20%, #1a2240 0%, var(--bg1) 55%), var(--bg1);
+    color:var(--text); overflow:hidden; user-select:none;
+  }
+  button, select{ font-family:'VT323', monospace; }
+  #app{position:relative; width:100%; height:100vh; height:100%;}
+ 
+  .pixel{
+    border-radius:0 !important;
+    border:3px solid var(--ink);
+    box-shadow:0 0 0 3px var(--accent), 5px 5px 0 0 var(--ink);
+  }
+ 
+  #muteBtn{
+    position:absolute; bottom:calc(14px + env(safe-area-inset-bottom,0px)); left:14px; z-index:30;
+    width:40px; height:40px; background:var(--card);
+    color:var(--text); font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  #muteBtn:active{ box-shadow:none !important; transform:translate(3px,3px); }
+ 
+  /* ---------- MENU ---------- */
+  #menu{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:18px; padding:20px; z-index:10;
+    background:
+      repeating-linear-gradient(90deg, rgba(124,92,255,.05) 0 22px, transparent 22px 44px),
+      radial-gradient(circle at 50% 0%, #1c2547 0%, var(--bg1) 60%);
+  }
+  #menu h1{
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(20px,5vw,34px); margin:0; letter-spacing:2px; color:var(--accent2);
+    text-shadow:3px 3px 0 var(--danger), 6px 6px 0 var(--ink);
+  }
+  #menu p.sub{color:var(--muted); margin:-6px 0 10px; font-size:16px; letter-spacing:.5px;}
+  .modes{display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:760px;}
+  .mode-card{
+    background:var(--card); padding:18px 20px;
+    width:210px; cursor:pointer; transition:transform .1s; text-align:left;
+  }
+  .mode-card:hover, .mode-card.sel{
+    transform:translate(-3px,-3px);
+    box-shadow:0 0 0 3px var(--accent2), 8px 8px 0 0 var(--ink);
+  }
+  .mode-card h3{margin:0 0 6px; font-size:17px; color:var(--text); font-family:'Press Start 2P',monospace; font-size:12px;}
+  .mode-card p{margin:0; font-size:15px; color:var(--muted); line-height:1.35;}
+  .mode-card .icon{font-size:26px; margin-bottom:8px; display:block;}
+ 
+  #options{display:flex; gap:20px; flex-wrap:wrap; justify-content:center; align-items:center;}
+  .opt-group{display:flex; flex-direction:column; gap:6px; align-items:center;}
+  .opt-group label{font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;}
+  .seg{
+    background:#1a2140; padding:4px; display:flex; gap:4px;
+  }
+  .seg button{
+    background:transparent; border:none; color:var(--muted); padding:8px 14px;
+    cursor:pointer; font-size:16px; transition:.1s; font-family:'VT323',monospace;
+  }
+  .seg button.active{background:var(--accent); color:var(--ink); font-weight:700;}
+ 
+  #startBtn{
+    margin-top:6px; background:var(--accent2); color:var(--ink);
+    border:none; padding:14px 40px; font-size:20px; font-weight:700; letter-spacing:1px;
+    cursor:pointer; transition:transform .08s; font-family:'Press Start 2P',monospace; font-size:14px;
+  }
+  #startBtn:active{ box-shadow:none !important; transform:translate(5px,5px); }
+ 
+  .best{font-size:15px; color:var(--muted); margin-top:2px;}
+ 
+  /* ---------- HUD ---------- */
+  #hud{
+    position:absolute; top:0; left:0; right:0; display:flex; justify-content:space-between;
+    align-items:flex-start; padding:16px 20px; padding-top:calc(16px + env(safe-area-inset-top,0px));
+    z-index:5; pointer-events:none; font-variant-numeric:tabular-nums;
+  }
+  .hud-box{
+    background:var(--card); padding:8px 16px;
+    display:flex; gap:18px; pointer-events:auto;
+  }
+  .stat{text-align:center;}
+  .stat .v{font-size:22px; font-weight:700; color:var(--accent2);}
+  .stat .k{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+  #quitBtn{
+    background:#1a2140; color:var(--muted);
+    padding:8px 14px; cursor:pointer; font-size:15px; pointer-events:auto; font-family:'VT323',monospace;
+  }
+  #quitBtn:hover{color:var(--danger);}
+  #quitBtn:active{ box-shadow:none !important; transform:translate(3px,3px); }
+ 
+  /* ---------- GAME ---------- */
+  #field{position:absolute; inset:0; z-index:1; cursor:crosshair;}
+  .target{
+    position:absolute; cursor:pointer; border-radius:0;
+    clip-path:polygon(20% 0%,80% 0%,80% 10%,90% 10%,90% 20%,100% 20%,100% 80%,90% 80%,90% 90%,80% 90%,80% 100%,20% 100%,20% 90%,10% 90%,10% 80%,0% 80%,0% 20%,10% 20%,10% 10%,20% 10%);
+    background:
+      radial-gradient(circle at 50% 50%,
+        #ffe3e9 0% 9%,
+        var(--danger) 9% 15%,
+        #fff 15% 24%,
+        var(--danger) 24% 38%,
+        #fff 38% 47%,
+        var(--danger) 47% 61%,
+        #fff 61% 70%,
+        var(--danger) 70% 100%);
+    box-shadow:4px 4px 0 0 rgba(0,0,0,.5);
+    transform:translate(-50%,-50%) scale(0);
+    transition:transform .12s cubic-bezier(.34,1.56,.64,1);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .target.show{transform:translate(-50%,-50%) scale(1);}
+  .target::after{
+    content:''; width:26%; height:26%; margin-left:-38%; margin-top:-38%;
+    background:rgba(255,255,255,.65); pointer-events:none;
+  }
+  .target.pop{
+    animation:shatterPop .18s ease-out forwards;
+  }
+  @keyframes shatterPop{
+    0%{ transform:translate(-50%,-50%) scale(1) rotate(0deg); filter:brightness(1); opacity:1; }
+    35%{ transform:translate(-50%,-50%) scale(1.2) rotate(8deg); filter:brightness(2.2); opacity:1; }
+    100%{ transform:translate(-50%,-50%) scale(0.3) rotate(-16deg); filter:brightness(1.4); opacity:0; }
+  }
+ 
+  .shard{
+    position:absolute; width:7px; height:7px; pointer-events:none; z-index:3;
+    animation:shardFly .35s ease-out forwards;
+  }
+  @keyframes shardFly{
+    to{ transform:translate(var(--tx), var(--ty)) rotate(200deg); opacity:0; }
+  }
+ 
+  .bullet-hole{
+    position:absolute; width:20px; height:20px; margin-left:-10px; margin-top:-10px;
+    pointer-events:none; z-index:3; border-radius:50%;
+    background:radial-gradient(circle at 38% 35%, rgba(0,0,0,.9) 0%, rgba(0,0,0,.75) 38%, rgba(0,0,0,.35) 68%, transparent 100%);
+    animation:bulletFade 2.4s ease-out forwards;
+  }
+  .bullet-hole::before, .bullet-hole::after{
+    content:''; position:absolute; top:50%; left:50%; width:32px; height:2px; background:rgba(0,0,0,.4);
+    transform-origin:0 50%;
+  }
+  .bullet-hole::before{ transform:rotate(18deg); }
+  .bullet-hole::after{ transform:rotate(-52deg); }
+  @keyframes bulletFade{
+    0%{ transform:scale(.3); opacity:0; }
+    12%{ transform:scale(1.2); opacity:1; }
+    28%{ transform:scale(1); opacity:1; }
+    78%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+ 
+  .float-pts{
+    position:absolute; color:var(--accent2); font-weight:700; font-size:17px; pointer-events:none;
+    transform:translate(-50%,-50%); animation:floatUp .6s ease-out forwards; z-index:3;
+    font-family:'VT323',monospace; text-shadow:2px 2px 0 var(--ink);
+  }
+  @keyframes floatUp{ to{ transform:translate(-50%,-160%); opacity:0; } }
+ 
+  #crosshair{
+    position:absolute; width:0; height:0; pointer-events:none; z-index:4; display:none;
+  }
+  #crosshair::before, #crosshair::after{
+    content:''; position:absolute; background:rgba(255,255,255,.5);
+  }
+ 
+  /* ---------- RESULTS ---------- */
+  #results{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(6,9,18,.82); z-index:20;
+  }
+  #results .panel{
+    background:var(--card); padding:32px 36px;
+    text-align:center; min-width:280px;
+  }
+  #results h2{margin:0 0 10px; font-size:15px; font-family:'Press Start 2P',monospace; color:var(--accent2);}
+  #results .big{font-size:50px; font-weight:800; margin:10px 0; color:var(--accent2); text-shadow:3px 3px 0 var(--danger), 6px 6px 0 var(--ink); font-family:'Press Start 2P',monospace; font-size:36px;}
+  #results .rowstats{display:flex; gap:26px; justify-content:center; margin:18px 0 24px; flex-wrap:wrap;}
+  .chart-wrap{ margin:0 0 22px; }
+  .chart-label{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  #resChart{ background:#0d1226; border:3px solid var(--ink); box-shadow:0 0 0 3px #2a3355; padding:8px; }
+  #results button{
+    background:var(--accent2); color:var(--ink); border:none;
+    padding:12px 28px; font-weight:700; cursor:pointer; font-size:14px; margin:4px; font-family:'Press Start 2P',monospace;
+  }
+  #results button:active{ box-shadow:none !important; transform:translate(4px,4px); }
+  #results .ghost{background:var(--card); color:var(--text);}
+ 
+  @media (max-width:520px){
+    .mode-card{width:44%; padding:14px;}
+    #options{gap:10px;}
+    .hud-box{gap:10px; padding:6px 10px;}
+    .stat .v{font-size:17px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+ 
+  <button id="muteBtn" class="pixel" aria-label="Silenciar sonido">🔊</button>
+ 
+  <!-- MENU -->
+  <div id="menu">
+    <h1>🎯 HITMARKER</h1>
+    <p class="sub">Calienta la muñeca antes de jugar. Elige un modo.</p>
+    <div class="modes">
+      <div class="mode-card pixel sel" data-mode="time">
+        <span class="icon">⏱️</span>
+        <h3>Tiempo límite</h3>
+        <p>Petad el máximo de dianas antes de que se acabe el tiempo.</p>
+      </div>
+      <div class="mode-card pixel" data-mode="maxtargets">
+        <span class="icon">🏆</span>
+        <h3>Máx. dianas</h3>
+        <p>Sin límite de tiempo. Falla 3 veces y se acaba la ronda.</p>
+      </div>
+      <div class="mode-card pixel" data-mode="track">
+        <span class="icon">🌀</span>
+        <h3>Diana móvil</h3>
+        <p>Una sola diana se mueve en patrones aleatorios y cambia de tamaño. Dale tantas veces como puedas en el tiempo.</p>
+      </div>
+    </div>
+ 
+    <div id="options">
+      <div class="opt-group" id="timeOptWrap">
+        <label>Duración</label>
+        <div class="seg pixel" id="timeSeg">
+          <button data-v="15">15s</button>
+          <button data-v="30" class="active">30s</button>
+          <button data-v="60">60s</button>
+        </div>
+      </div>
+      <div class="opt-group">
+        <label>Tamaño diana</label>
+        <div class="seg pixel" id="sizeSeg">
+          <button data-v="small">Pequeña</button>
+          <button data-v="mixed" class="active">Mixta</button>
+          <button data-v="large">Grande</button>
+        </div>
+      </div>
+    </div>
+ 
+    <button id="startBtn" class="pixel">EMPEZAR</button>
+    <div class="best" id="bestLine"></div>
+  </div>
+ 
+  <!-- HUD -->
+  <div id="hud" style="display:none">
+    <div class="hud-box pixel">
+      <div class="stat"><div class="v" id="hScore">0</div><div class="k">Aciertos</div></div>
+      <div class="stat" id="hTimeWrap"><div class="v" id="hTime">30</div><div class="k">Tiempo</div></div>
+      <div class="stat" id="hMissWrap" style="display:none"><div class="v" id="hMiss">0</div><div class="k">Fallos</div></div>
+      <div class="stat"><div class="v" id="hAcc">100%</div><div class="k">Precisión</div></div>
+    </div>
+    <button id="quitBtn" class="pixel">✕ Salir</button>
+  </div>
+ 
+  <!-- GAME FIELD -->
+  <div id="field"></div>
+ 
+  <!-- RESULTS -->
+  <div id="results">
+    <div class="panel pixel">
+      <h2>Ronda terminada</h2>
+      <div class="big" id="resScore">0</div>
+      <div class="rowstats">
+        <div class="stat"><div class="v" id="resAcc">0%</div><div class="k">Precisión</div></div>
+        <div class="stat"><div class="v" id="resTime">0s</div><div class="k">Duración</div></div>
+        <div class="stat"><div class="v" id="resAvg">0ms</div><div class="k">T. medio</div></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-label">Precisión a lo largo de la partida</div>
+        <div id="resChart"></div>
+      </div>
+      <div>
+        <button id="retryBtn" class="pixel">🔁 Repetir</button>
+        <button class="ghost pixel" id="menuBtn">Menú</button>
+      </div>
+    </div>
+  </div>
+ 
+</div>
+ 
+<script>
+(function(){
+  const menu = document.getElementById('menu');
+  const hud = document.getElementById('hud');
+  const field = document.getElementById('field');
+  const resultsEl = document.getElementById('results');
+  const muteBtn = document.getElementById('muteBtn');
+ 
+  // ---------- SOUND ENGINE (sintetizado, sin ficheros externos) ----------
+  let audioCtx = null, masterGain = null;
+  let muted = false;
+  try{ muted = localStorage.getItem('aimtrainer_muted') === '1'; }catch(e){}
+  function updateMuteUI(){ muteBtn.textContent = muted ? '🔇' : '🔊'; }
+  updateMuteUI();
+  muteBtn.addEventListener('click', ()=>{
+    muted = !muted;
+    try{ localStorage.setItem('aimtrainer_muted', muted?'1':'0'); }catch(e){}
+    updateMuteUI();
+  });
+ 
+  function getCtx(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.85;
+      masterGain.connect(audioCtx.destination);
+    }
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    return audioCtx;
+  }
+ 
+  function playHit(streak){
+    if(muted) return;
+    const ctx = getCtx();
+    const t0 = ctx.currentTime;
+ 
+    // --- disparo: crack seco de arma + golpe grave de retroceso ---
+    const shotBufSize = Math.floor(ctx.sampleRate*0.05);
+    const shotBuf = ctx.createBuffer(1, shotBufSize, ctx.sampleRate);
+    const shotData = shotBuf.getChannelData(0);
+    for(let i=0;i<shotBufSize;i++) shotData[i] = (Math.random()*2-1) * Math.pow(1-i/shotBufSize, 2);
+    const shotNoise = ctx.createBufferSource();
+    shotNoise.buffer = shotBuf;
+    const shotBP = ctx.createBiquadFilter();
+    shotBP.type = 'bandpass'; shotBP.frequency.value = 1000; shotBP.Q.value = 0.7;
+    const shotGain = ctx.createGain();
+    shotGain.gain.setValueAtTime(0.5, t0);
+    shotGain.gain.exponentialRampToValueAtTime(0.0001, t0+0.07);
+    shotNoise.connect(shotBP).connect(shotGain).connect(masterGain);
+    shotNoise.start(t0);
+ 
+    const thump = ctx.createOscillator();
+    const thumpGain = ctx.createGain();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(85, t0);
+    thump.frequency.exponentialRampToValueAtTime(32, t0+0.1);
+    thumpGain.gain.setValueAtTime(0.0001, t0);
+    thumpGain.gain.exponentialRampToValueAtTime(0.55, t0+0.006);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, t0+0.13);
+    thump.connect(thumpGain).connect(masterGain);
+    thump.start(t0); thump.stop(t0+0.14);
+ 
+    // --- cascada cristalina brillante (estilo "target break") ---
+    const scale = [784, 932, 1046, 1245, 1568, 1865]; // arpegio ascendente, más grave
+    const noteCount = 6;
+    for(let i=0;i<noteCount;i++){
+      const t1 = t0 + 0.015 + i*(0.014 + Math.random()*0.01);
+      const f = scale[i % scale.length] * (0.98 + Math.random()*0.05) * (1 + Math.min(streak||0,10)*0.01);
+ 
+      // tono fundamental tipo campana
+      const bell = ctx.createOscillator();
+      const bellGain = ctx.createGain();
+      bell.type = 'sine';
+      bell.frequency.setValueAtTime(f, t1);
+      bellGain.gain.setValueAtTime(0.0001, t1);
+      bellGain.gain.exponentialRampToValueAtTime(0.16, t1+0.004);
+      bellGain.gain.exponentialRampToValueAtTime(0.0001, t1+0.22);
+      bell.connect(bellGain).connect(masterGain);
+      bell.start(t1); bell.stop(t1+0.24);
+ 
+      // armónico superior para dar brillo metálico
+      const overtone = ctx.createOscillator();
+      const overGain = ctx.createGain();
+      overtone.type = 'triangle';
+      overtone.frequency.setValueAtTime(f*2.01, t1);
+      overGain.gain.setValueAtTime(0.0001, t1);
+      overGain.gain.exponentialRampToValueAtTime(0.06, t1+0.004);
+      overGain.gain.exponentialRampToValueAtTime(0.0001, t1+0.12);
+      overtone.connect(overGain).connect(masterGain);
+      overtone.start(t1); overtone.stop(t1+0.13);
+    }
+ 
+    // ruido cristalino de fondo (crujido de cristal)
+    const glassBufSize = Math.floor(ctx.sampleRate*0.09);
+    const glassBuf = ctx.createBuffer(1, glassBufSize, ctx.sampleRate);
+    const glassData = glassBuf.getChannelData(0);
+    for(let i=0;i<glassBufSize;i++) glassData[i] = (Math.random()*2-1) * Math.pow(1-i/glassBufSize, 1.5);
+    const glassNoise = ctx.createBufferSource();
+    glassNoise.buffer = glassBuf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass'; hp.frequency.value = 2600;
+    const glassGain = ctx.createGain();
+    glassGain.gain.setValueAtTime(0.15, t0+0.01);
+    glassGain.gain.exponentialRampToValueAtTime(0.0001, t0+0.09);
+    glassNoise.connect(hp).connect(glassGain).connect(masterGain);
+    glassNoise.start(t0+0.02);
+  }
+ 
+  function playMiss(){
+    if(muted) return;
+    const ctx = getCtx();
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, t0);
+    osc.frequency.exponentialRampToValueAtTime(75, t0+0.16);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.22, t0+0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.22);
+    osc.connect(gain).connect(masterGain);
+    osc.start(t0); osc.stop(t0+0.24);
+  }
+ 
+  function playUI(){
+    if(muted) return;
+    const ctx = getCtx();
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(700, t0);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.14, t0+0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.06);
+    osc.connect(gain).connect(masterGain);
+    osc.start(t0); osc.stop(t0+0.07);
+  }
+ 
+  function playGameOver(){
+    if(muted) return;
+    const ctx = getCtx();
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((f,i)=>{
+      const t0 = ctx.currentTime + i*0.09;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, t0);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.22, t0+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0+0.26);
+      osc.connect(gain).connect(masterGain);
+      osc.start(t0); osc.stop(t0+0.28);
+    });
+  }
+ 
+  let mode = 'time';
+  let timeLimit = 30;
+  let sizeMode = 'mixed';
+ 
+  // ---- mode selection ----
+  document.querySelectorAll('.mode-card').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      playUI();
+      document.querySelectorAll('.mode-card').forEach(x=>x.classList.remove('sel'));
+      c.classList.add('sel');
+      mode = c.dataset.mode;
+      document.getElementById('timeOptWrap').style.display = (mode==='maxtargets') ? 'none' : 'flex';
+    });
+  });
+  document.getElementById('timeSeg').addEventListener('click', e=>{
+    if(e.target.tagName!=='BUTTON') return;
+    playUI();
+    document.querySelectorAll('#timeSeg button').forEach(b=>b.classList.remove('active'));
+    e.target.classList.add('active');
+    timeLimit = parseInt(e.target.dataset.v);
+  });
+  document.getElementById('sizeSeg').addEventListener('click', e=>{
+    if(e.target.tagName!=='BUTTON') return;
+    playUI();
+    document.querySelectorAll('#sizeSeg button').forEach(b=>b.classList.remove('active'));
+    e.target.classList.add('active');
+    sizeMode = e.target.dataset.v;
+  });
+ 
+  // ---- best scores (in-memory only, resets on reload) ----
+  const best = { time:{}, maxtargets:0, track:{} };
+  function bestKey(){
+    if(mode==='time') return timeLimit;
+    if(mode==='track') return timeLimit;
+    return null;
+  }
+  function updateBestLine(){
+    let txt = '';
+    if(mode==='time'){
+      const b = best.time[timeLimit] || 0;
+      txt = 'Mejor en '+timeLimit+'s: '+b+' aciertos';
+    } else if(mode==='maxtargets'){
+      txt = 'Mejor racha: '+(best.maxtargets||0)+' aciertos';
+    } else if(mode==='track'){
+      const b = best.track[timeLimit] || 0;
+      txt = 'Mejor en '+timeLimit+'s: '+b+' impactos';
+    }
+    document.getElementById('bestLine').textContent = txt;
+  }
+  document.querySelectorAll('.mode-card, #timeSeg button').forEach(el=>el.addEventListener('click', updateBestLine));
+  updateBestLine();
+ 
+  // ---- game state ----
+  let running = false;
+  let score = 0, misses = 0, hits = 0, streak = 0;
+  let reactionTimes = [];
+  let timeline = []; // {t, type:'hit'|'miss'} para el gráfico de precisión final
+  let spawnTime = 0;
+  let timer = null, countdown = 0;
+  let rafId = null;
+ 
+  const sizeRanges = {
+    small:[24,40],
+    mixed:[22,110],
+    large:[70,150]
+  };
+ 
+  function fieldRect(){ return field.getBoundingClientRect(); }
+ 
+  function randSize(){
+    const [a,b] = sizeRanges[sizeMode];
+    return Math.round(a + Math.random()*(b-a));
+  }
+ 
+  function randPos(size){
+    const r = fieldRect();
+    const pad = size/2 + 6;
+ 
+    // zona reservada bajo el HUD superior (marcador, botón salir)
+    let minY = pad;
+    if(hud.style.display !== 'none'){
+      const hudRect = hud.getBoundingClientRect();
+      minY = Math.max(pad, (hudRect.bottom - r.top) + size/2 + 10);
+    }
+    const maxY = Math.max(minY+1, r.height - pad);
+ 
+    // zona reservada alrededor del botón de silencio (abajo-izquierda)
+    const muteRect = muteBtn.getBoundingClientRect();
+    const muteZone = {
+      left: muteRect.left - r.left - 14,
+      right: muteRect.right - r.left + 14,
+      top: muteRect.top - r.top - 14,
+      bottom: muteRect.bottom - r.top + 14
+    };
+ 
+    let x, y, tries = 0;
+    do{
+      x = pad + Math.random()*(r.width - pad*2);
+      y = minY + Math.random()*(maxY - minY);
+      tries++;
+    } while(
+      tries < 20 &&
+      x + size/2 > muteZone.left && x - size/2 < muteZone.right &&
+      y + size/2 > muteZone.top && y - size/2 < muteZone.bottom
+    );
+    return {x,y};
+  }
+ 
+  function spawnFloatPts(x,y,text){
+    const el = document.createElement('div');
+    el.className = 'float-pts';
+    el.textContent = text;
+    el.style.left = x+'px';
+    el.style.top = y+'px';
+    field.appendChild(el);
+    setTimeout(()=>el.remove(), 650);
+  }
+ 
+  function flashMiss(x,y){
+    const mark = document.createElement('div');
+    mark.className = 'bullet-hole';
+    mark.style.left = x+'px';
+    mark.style.top = y+'px';
+    field.appendChild(mark);
+    setTimeout(()=>mark.remove(), 2450);
+  }
+ 
+  function spawnShards(x,y){
+    for(let i=0;i<7;i++){
+      const s = document.createElement('div');
+      s.className = 'shard';
+      const ang = Math.random()*Math.PI*2;
+      const dist = 18 + Math.random()*34;
+      s.style.left = x+'px';
+      s.style.top = y+'px';
+      s.style.setProperty('--tx', Math.cos(ang)*dist+'px');
+      s.style.setProperty('--ty', Math.sin(ang)*dist+'px');
+      s.style.background = Math.random()>0.4 ? 'var(--danger)' : '#fff';
+      field.appendChild(s);
+      setTimeout(()=>s.remove(), 400);
+    }
+  }
+ 
+  // ---------- STANDARD TARGET (time / maxtargets modes) ----------
+  let currentTarget = null;
+  function spawnStandardTarget(){
+    if(currentTarget) currentTarget.remove();
+    const size = randSize();
+    const pos = randPos(size);
+    const el = document.createElement('div');
+    el.className = 'target';
+    el.style.width = size+'px';
+    el.style.height = size+'px';
+    el.style.left = pos.x+'px';
+    el.style.top = pos.y+'px';
+    field.appendChild(el);
+    requestAnimationFrame(()=>el.classList.add('show'));
+    spawnTime = performance.now();
+    el.addEventListener('pointerdown', onHitStandard);
+    currentTarget = el;
+  }
+ 
+  function onHitStandard(e){
+    e.stopPropagation();
+    if(!running) return;
+    const rt = performance.now() - spawnTime;
+    reactionTimes.push(rt);
+    hits++; score++; streak++;
+    timeline.push({t:(performance.now()-gameStartTs)/1000, type:'hit'});
+    playHit(streak);
+    const r = currentTarget.getBoundingClientRect(), fr = fieldRect();
+    spawnFloatPts(r.left-fr.left+r.width/2, r.top-fr.top, '+1  '+Math.round(rt)+'ms');
+    spawnShards(r.left-fr.left+r.width/2, r.top-fr.top+r.height/2);
+    currentTarget.classList.add('pop');
+    currentTarget.removeEventListener('pointerdown', onHitStandard);
+    currentTarget = null;
+    updateHud();
+    setTimeout(()=>{ if(running) spawnStandardTarget(); }, 60);
+  }
+ 
+  function onFieldMissClick(e){
+    if(!running) return;
+    streak = 0;
+    playMiss();
+    timeline.push({t:(performance.now()-gameStartTs)/1000, type:'miss'});
+    const fr = fieldRect();
+    flashMiss(e.clientX - fr.left, e.clientY - fr.top);
+    if(mode==='time'){
+      misses++;
+      updateHud();
+    } else if(mode==='maxtargets'){
+      misses++;
+      updateHud();
+      if(misses>=3){ endGame(); }
+    } else if(mode==='track'){
+      misses++;
+      updateHud();
+    }
+  }
+ 
+  // ---------- TRACK MODE (moving/shrinking single target) ----------
+  let trackEl = null;
+  let trackAnim = null;
+  let trackHits = 0;
+ 
+  function startTrackTarget(){
+    trackEl = document.createElement('div');
+    trackEl.className = 'target show';
+    field.appendChild(trackEl);
+    let size = randSize();
+    trackEl.style.width = size+'px';
+    trackEl.style.height = size+'px';
+    let pos = randPos(size);
+    trackEl.style.left = pos.x+'px';
+    trackEl.style.top = pos.y+'px';
+ 
+    let target = randPos(size);
+    let lastChange = performance.now();
+    let changeInterval = 900;
+ 
+    function loop(now){
+      if(!running || mode!=='track'){ return; }
+      const dx = target.x-pos.x, dy = target.y-pos.y;
+      const dist = Math.hypot(dx,dy);
+      const speed = 2.4 + Math.random()*0.4;
+      if(dist>2){
+        pos.x += (dx/dist)*speed;
+        pos.y += (dy/dist)*speed;
+      }
+      trackEl.style.left = pos.x+'px';
+      trackEl.style.top = pos.y+'px';
+ 
+      if(now-lastChange > changeInterval){
+        lastChange = now;
+        changeInterval = 700 + Math.random()*900;
+        size = randSize();
+        trackEl.style.width = size+'px';
+        trackEl.style.height = size+'px';
+        target = randPos(size);
+      }
+      trackAnim = requestAnimationFrame(loop);
+    }
+    trackAnim = requestAnimationFrame(loop);
+ 
+    trackEl.addEventListener('pointerdown', (e)=>{
+      e.stopPropagation();
+      if(!running) return;
+      trackHits++; score++; hits++; streak++;
+      timeline.push({t:(performance.now()-gameStartTs)/1000, type:'hit'});
+      playHit(streak);
+      const r = trackEl.getBoundingClientRect(), fr = fieldRect();
+      spawnFloatPts(r.left-fr.left+r.width/2, r.top-fr.top, '+1');
+      spawnShards(r.left-fr.left+r.width/2, r.top-fr.top+r.height/2);
+      // little pulse feedback, keep moving
+      trackEl.style.boxShadow = '0 0 0 6px rgba(34,211,238,.55), 4px 4px 0 0 rgba(0,0,0,.5)';
+      setTimeout(()=>{ if(trackEl) trackEl.style.boxShadow='4px 4px 0 0 rgba(0,0,0,.5)'; }, 120);
+      updateHud();
+    });
+  }
+ 
+  function stopTrackTarget(){
+    if(trackAnim) cancelAnimationFrame(trackAnim);
+    trackAnim = null;
+    if(trackEl){ trackEl.remove(); trackEl=null; }
+  }
+ 
+  // ---------- HUD ----------
+  function updateHud(){
+    document.getElementById('hScore').textContent = score;
+    document.getElementById('hTime').textContent = countdown;
+    document.getElementById('hMiss').textContent = misses;
+    const total = hits+misses;
+    const acc = total>0 ? Math.round((hits/total)*100) : 100;
+    document.getElementById('hAcc').textContent = acc+'%';
+  }
+ 
+  // ---------- START / END ----------
+  function startGame(){
+    score=0; misses=0; hits=0; streak=0; reactionTimes=[]; trackHits=0; timeline=[];
+    getCtx();
+    running = true;
+    menu.style.display='none';
+    hud.style.display='flex';
+    resultsEl.style.display='none';
+    field.innerHTML='';
+    gameStartTs = performance.now();
+ 
+    document.getElementById('hMissWrap').style.display = (mode==='maxtargets' || mode==='track') ? 'flex' : 'none';
+    document.getElementById('hTimeWrap').style.display = (mode==='maxtargets') ? 'none' : 'flex';
+ 
+    field.onpointerdown = onFieldMissClick;
+ 
+    if(mode==='time' || mode==='track'){
+      countdown = timeLimit;
+      updateHud();
+      timer = setInterval(()=>{
+        countdown--;
+        updateHud();
+        if(countdown<=0) endGame();
+      },1000);
+    } else {
+      updateHud();
+    }
+ 
+    if(mode==='track'){
+      startTrackTarget();
+    } else {
+      spawnStandardTarget();
+    }
+  }
+ 
+  let gameStartTs = 0;
+ 
+  function buildAccuracyChart(durationSec){
+    const wrap = document.getElementById('resChart');
+    if(timeline.length===0){ wrap.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:14px;">Sin datos suficientes</div>'; return; }
+    const dur = Math.max(1, durationSec);
+    const bucketCount = Math.max(5, Math.min(12, Math.round(dur)));
+    const bucketDur = dur/bucketCount;
+    const buckets = Array.from({length:bucketCount}, ()=>({hits:0,misses:0}));
+    timeline.forEach(ev=>{
+      const idx = Math.min(bucketCount-1, Math.max(0, Math.floor(ev.t/bucketDur)));
+      if(ev.type==='hit') buckets[idx].hits++; else buckets[idx].misses++;
+    });
+ 
+    const W=280, H=120, padL=10, padR=10, padT=12, padB=22;
+    const plotW=W-padL-padR, plotH=H-padT-padB;
+ 
+    let lastAcc = 1;
+    const values = buckets.map(b=>{
+      const t = b.hits+b.misses;
+      if(t>0) lastAcc = b.hits/t;
+      return lastAcc;
+    });
+    const pts = values.map((v,i)=>{
+      const x = padL + (bucketCount===1 ? plotW/2 : (i/(bucketCount-1))*plotW);
+      const y = padT + (1-v)*plotH;
+      return {x,y,v};
+    });
+ 
+    const linePath = 'M ' + pts.map(p=>`${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ');
+    const areaPath = `${linePath} L ${pts[pts.length-1].x.toFixed(1)} ${(padT+plotH).toFixed(1)} L ${pts[0].x.toFixed(1)} ${(padT+plotH).toFixed(1)} Z`;
+ 
+    const gridY = [0,0.5,1].map(f => padT + f*plotH);
+    let grid = gridY.map(y=>`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${(padL+plotW).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#2a3355" stroke-width="1" stroke-dasharray="3 3"/>`).join('');
+ 
+    let markers = pts.map(p=>{
+      const color = p.v>=0.75 ? 'var(--accent2)' : (p.v>=0.4 ? 'var(--accent)' : 'var(--danger)');
+      return `<rect x="${(p.x-3.5).toFixed(1)}" y="${(p.y-3.5).toFixed(1)}" width="7" height="7" fill="${color}" stroke="var(--ink)" stroke-width="1"></rect>`;
+    }).join('');
+ 
+    wrap.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" width="100%" height="120" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent2)" stop-opacity=".55"/>
+            <stop offset="100%" stop-color="var(--accent2)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${grid}
+        <path d="${areaPath}" fill="url(#chartGrad)"></path>
+        <path d="${linePath}" fill="none" stroke="var(--accent2)" stroke-width="2.5" stroke-linejoin="round"></path>
+        ${markers}
+        <text x="${padL}" y="${H-6}" fill="var(--muted)" font-size="9" font-family="VT323,monospace">0s</text>
+        <text x="${(padL+plotW)}" y="${H-6}" fill="var(--muted)" font-size="9" font-family="VT323,monospace" text-anchor="end">${Math.round(dur)}s</text>
+        <text x="${padL}" y="${padT+3}" fill="var(--muted)" font-size="9" font-family="VT323,monospace">100%</text>
+        <text x="${padL}" y="${padT+plotH+3}" fill="var(--muted)" font-size="9" font-family="VT323,monospace">0%</text>
+      </svg>`;
+  }
+ 
+  function endGame(){
+    if(!running) return;
+    running = false;
+    clearInterval(timer);
+    stopTrackTarget();
+    if(currentTarget){ currentTarget.remove(); currentTarget=null; }
+    field.onpointerdown = null;
+ 
+    const rawDuration = (performance.now()-gameStartTs)/1000;
+    const durationSec = Math.round(rawDuration);
+    const total = hits+misses;
+    const acc = total>0 ? Math.round((hits/total)*100) : 100;
+    const avg = reactionTimes.length ? Math.round(reactionTimes.reduce((a,b)=>a+b,0)/reactionTimes.length) : 0;
+    buildAccuracyChart(rawDuration);
+ 
+    // best tracking
+    if(mode==='time'){
+      best.time[timeLimit] = Math.max(best.time[timeLimit]||0, score);
+    } else if(mode==='maxtargets'){
+      best.maxtargets = Math.max(best.maxtargets||0, score);
+    } else if(mode==='track'){
+      best.track[timeLimit] = Math.max(best.track[timeLimit]||0, score);
+    }
+    updateBestLine();
+ 
+    document.getElementById('resScore').textContent = score;
+    document.getElementById('resAcc').textContent = (mode==='maxtargets' ? acc+'%' : acc+'%');
+    document.getElementById('resTime').textContent = durationSec+'s';
+    document.getElementById('resAvg').textContent = (mode==='track' ? '—' : (avg+'ms'));
+ 
+    hud.style.display='none';
+    resultsEl.style.display='flex';
+    playGameOver();
+  }
+ 
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('retryBtn').addEventListener('click', startGame);
+  document.getElementById('menuBtn').addEventListener('click', ()=>{
+    playUI();
+    resultsEl.style.display='none';
+    menu.style.display='flex';
+  });
+  document.getElementById('quitBtn').addEventListener('click', ()=>{
+    playUI();
+    running=false;
+    clearInterval(timer);
+    stopTrackTarget();
+    if(currentTarget){ currentTarget.remove(); currentTarget=null; }
+    field.onpointerdown=null;
+    field.innerHTML='';
+    hud.style.display='none';
+    menu.style.display='flex';
+  });
+ 
+  window.addEventListener('resize', ()=>{ /* field is relative, targets stay put visually fine */ });
+})();
+</script>
+</body>
+</html>
+ 

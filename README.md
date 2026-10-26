@@ -12,7 +12,7 @@
 ## 🕹️ Demo en vivo
 
 🔗 **Jugar ahora → [spawncamp.com
-](https://jeuri-ddz.github.io/Spawncamp/)**
+](https://spawn-camp.github.io/html-videogame-platform/)**
 
 ---
 
